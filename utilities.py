@@ -3,7 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def load_data():
+def load_data(imgs_filename):
     print('Loading vector data')
     # [t, x_tango, y_tango, z_tango, x_vicon, y_vicon, z_vicon, x_err_rate, y_err_rate, z_err_rate]
     d_raw = (np.genfromtxt('trasnformed_data_slash_2.csv',delimiter=',')).astype(np.float32)
@@ -29,9 +29,18 @@ def load_data():
     y_data = np.concatenate([[0.],np.diff(pos_err)],axis=0); # Error rate, crudely estimated.
 
     print('Loading image data')
-    flows_data = np.load('../gbucket/center_cropped_300x300.npy').astype(np.float32)
+#    flows_data = np.load('../gbucket/center_cropped_192x192.npy').astype(np.float32)
+    flows_data = np.load(imgs_filename).astype(np.float32)
     flows_data = flows_data[i_start:,...]
-
+    
+    # special for the 192, which is actually 193
+    if(flows_data.shape[2] == 193):
+        flows_data = flows_data[:,1:,1:,...]
+        
+    # Make sure the channels dim exists, even in a single channel input:
+    if(len(flows_data.shape) == 3):
+        print('Single layer images, augmenting dimensions')
+        flows_data = flows_data[...,None];
     
     print('Preprocessing data')
     # Shorten datastream (TODO: Automate this sort of clipping by finding outliers)
@@ -40,6 +49,7 @@ def load_data():
     y_data = y_data[i_start:i_end]
     imu_data = imu_data[i_start:i_end,:]
     flows_data = flows_data[i_start:i_end,...]
+    
 
     ### Data Preprocessing ###
         
@@ -114,13 +124,15 @@ def plot_examples(x_data,flows_data,y_norm,y_angle, train_inds, val_inds):
 def calc_rmse(predictions, targets):
     return np.sqrt(((predictions.reshape([-1]) - targets.reshape([-1])) ** 2).mean())
 
-def sample_subseq(sequence_length, x, y, ret_ind = False):
+def sample_subseq(sequence_length, x, y, start_ind=None, ret_ind = False):
     if(x.shape[0] != y.shape[0]):
         print('X and Y do not have same number of samples!', x.shape[0], y.shape[0])
     if(x.shape[0] < sequence_length):
         print('Asking for a sequence longer than the data!')
         return [],[]
-    start_ind = np.random.randint(0, x.shape[0]-sequence_length);
+    
+    if(start_ind is None):
+        start_ind = np.random.randint(0, x.shape[0]-sequence_length);
     if(ret_ind):
         return x[start_ind:start_ind+sequence_length,...], y[start_ind:start_ind+sequence_length,...],start_ind
     return x[start_ind:start_ind+sequence_length,...], y[start_ind:start_ind+sequence_length,...]
@@ -144,3 +156,83 @@ def sample_seqbatch(batch_size, sequence_length, x, y, start_ind=None):
         y_batch = np.concatenate([y_batch, y[start_ind:start_ind+sequence_length,...]],axis=0)
     return x_batch,y_batch
     
+
+def sample_3x(batch_size, x, y,start_ind=None):
+    SQUEEZENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+    SQUEEZENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+
+    xk,yk = sample_subseq(3,x,y,start_ind);
+    xk = (xk/255.0-SQUEEZENET_MEAN[:,None,None])/SQUEEZENET_STD[:,None,None]
+    x_batch = [xk]
+    y_batch = [yk[-1]]
+    for k in range(batch_size-1):
+        xk,yk = sample_subseq(3,x,y,start_ind);
+        x_batch = np.concatenate([x_batch,xk[None,...]],axis=0);
+        y_batch = np.concatenate([y_batch,[yk[-1]]],axis=0);
+    x_batch = np.swapaxes(x_batch, 1,3)
+    return x_batch, y_batch
+
+
+
+# Blue background corresponds to data used during training
+def plot_data(ns, ne, pred, actual, train_end=None, save=False):
+    print('plotting from ', ns, ' to ', ne)
+    
+    print('High correlation (near 1) means we are predicting well.')
+    m1 = actual[ns:ne].mean()
+    c1 = np.sqrt(np.correlate(actual[ns:ne]-m1,actual[ns:ne]-m1)[0])
+    m2 = pred[ns:ne].mean()
+    c2 = np.sqrt(np.correlate(pred[ns:ne]-m2,pred[ns:ne]-m2)[0])
+    c12 = (np.correlate(actual[ns:ne]-m1,pred[ns:ne]-m2))[0]/(c1*c2)
+    print('Correlation between error and signal:', (np.abs(c12)))
+    
+    indices = np.arange(ns,ne);
+    
+    plt.subplot(2,1,1)
+    plt.ylabel('Error Rate')
+    if train_end is not None:
+        plt.axvspan(ns,train_end,facecolor='b',alpha=0.1)
+        plt.axvspan(train_end,ne,facecolor='g',alpha=0.1)
+    plt.plot(indices, actual[ns:ne],'.',alpha=0.6)
+    plt.plot(indices, pred[ns:ne],'-.',alpha=0.6)
+    plt.xlim([ns,ne])
+    plt.legend(['Actual', 'Predicted'])
+    plt.plot([ns,ne],[0,0],':')
+
+    plt.subplot(2,1,2)
+    if train_end is not None:
+        plt.axvspan(ns,train_end,facecolor='b',alpha=0.1)
+        plt.axvspan(train_end,ne,facecolor='g',alpha=0.1)
+    plt.ylabel('Cumulative Error')
+    plt.plot(indices, np.cumsum(pred[ns:ne]))
+    plt.plot(indices, np.cumsum(actual[ns:ne]))
+    plt.plot([ns,ne],[0,0],':')
+    plt.legend(['Predicted','Actual'])
+    
+    if(save):
+        plt.savefig('pred.png',dpi=720)
+    else:
+        plt.show()
+    return plt
+
+def plot_error(ns, ne, pred, actual, train_end=None):
+    print('High correlation (near 1) means we are predicting noise.')
+    m1 = actual[ns:ne].mean()
+    c1 = np.sqrt(np.correlate(actual[ns:ne]-m1,actual[ns:ne]-m1)[0])
+    m2 = np.mean(pred[ns:ne]-actual[ns:ne])
+    c2 = np.sqrt(np.correlate(pred[ns:ne]-m2-actual[ns:ne],pred[ns:ne]-m2-actual[ns:ne])[0])
+    c12 = (np.correlate(actual[ns:ne]-m1,pred[ns:ne]-actual[ns:ne]-m2))[0]/(c1*c2)
+    print('Correlation between error and signal:', (np.abs(c12)))
+    
+    indices = np.arange(ns,ne);
+
+    plt.ylabel('Prediction Errors')
+    plt.plot(indices, pred[ns:ne]-actual[ns:ne])
+    plt.plot(indices, -actual[ns:ne],':')
+    if train_end is not None:
+        plt.axvspan(ns,train_end,facecolor='b',alpha=0.1)
+        plt.axvspan(train_end,ne,facecolor='g',alpha=0.1)
+
+    plt.legend(['Error', 'Signal'])
+    plt.show()
+
