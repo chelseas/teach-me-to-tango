@@ -92,8 +92,12 @@ class SqueezeNet(object):
                 x = self.features
                 self.layers.append(x)
             with tf.variable_scope('layer1'):
-                W = tf.get_variable("weights",shape=[1,1,512,1000])
-                b = tf.get_variable("bias",shape=[1000])
+                if(save_path is not None):
+                    W = tf.get_variable("weights",shape=[1,1,512,1000])
+                    b = tf.get_variable("bias",shape=[1000])
+                else:
+                    W = tf.get_variable("weights",shape=[1,1,512,NUM_CLASSES])
+                    b = tf.get_variable("bias",shape=[NUM_CLASSES])
                 x = tf.nn.conv2d(x,W,[1,1,1,1],"VALID")
                 x = tf.nn.bias_add(x,b)
                 self.layers.append(x)
@@ -101,7 +105,6 @@ class SqueezeNet(object):
                 x = tf.nn.relu(x)
                 self.layers.append(x)
             with tf.variable_scope('layer3'):
-#                x = tf.nn.avg_pool(x,[1,13,13,1],strides=[1,13,13,1],padding='VALID')
                 if(img_dim == 192):   
                     x = tf.nn.avg_pool(x,[1,11,11,1],strides=[1,11,11,1],padding='VALID')
                 elif(img_dim == 150):
@@ -114,17 +117,21 @@ class SqueezeNet(object):
                     
                 self.layers.append(x)
             with tf.variable_scope('output_layer'):
-                x = tf.reshape(x,[-1,1000])
-                self.classifier = tf.layers.dense(x, NUM_CLASSES)
-                self.layers.append(x)
-#        self.classifier = tf.reshape(x,[-1, NUM_CLASSES])
-#
+
+                if(save_path is not None and NUM_CLASSES is not 1000):
+                    x = tf.reshape(x,[-1,1000])
+                    self.classifier = tf.layers.dense(x, NUM_CLASSES)
+                    self.layers.append(x)
+                else:
+                    self.classifier = tf.reshape(x,[-1,NUM_CLASSES])
         if save_path is not None:
             saver = tf.train.Saver()
-#            saver = tf.train.import_meta_graph(save_path*'.meta')
             saver.restore(sess, save_path)
-#        self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=tf.one_hot(self.labels, NUM_CLASSES), logits=self.classifier))
-        self.loss = tf.reduce_mean((tf.abs(tf.cast(tf.one_hot(self.labels, NUM_CLASSES),'float32')-self.classifier)))
+            
+        # Softmax loss:
+        self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=tf.one_hot(self.labels, NUM_CLASSES), logits=self.classifier))
+        # L1 loss:
+#        self.loss = tf.reduce_mean((tf.abs(tf.cast(tf.one_hot(self.labels, NUM_CLASSES),'float32')-self.classifier)))
 
         self.prediction = tf.cast(tf.argmax(self.classifier,1),'int32')
         self.acc = tf.reduce_mean(tf.cast(tf.equal(self.prediction, self.labels),tf.float32))

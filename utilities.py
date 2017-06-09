@@ -192,7 +192,7 @@ def plot_data(ns, ne, pred, actual, train_end=None, save=False):
     plt.ylabel('Error Rate')
     if train_end is not None:
         plt.axvspan(ns,train_end,facecolor='b',alpha=0.1)
-        plt.axvspan(train_end,ne,facecolor='g',alpha=0.1)
+#        plt.axvspan(train_end,ne,facecolor='g',alpha=0.1)
     plt.plot(indices, actual[ns:ne],'.',alpha=0.6)
     plt.plot(indices, pred[ns:ne],'-.',alpha=0.6)
     plt.xlim([ns,ne])
@@ -202,7 +202,7 @@ def plot_data(ns, ne, pred, actual, train_end=None, save=False):
     plt.subplot(2,1,2)
     if train_end is not None:
         plt.axvspan(ns,train_end,facecolor='b',alpha=0.1)
-        plt.axvspan(train_end,ne,facecolor='g',alpha=0.1)
+#        plt.axvspan(train_end,ne,facecolor='g',alpha=0.1)
     plt.ylabel('Cumulative Error')
     plt.plot(indices, np.cumsum(pred[ns:ne]))
     plt.plot(indices, np.cumsum(actual[ns:ne]))
@@ -213,7 +213,7 @@ def plot_data(ns, ne, pred, actual, train_end=None, save=False):
         plt.savefig('pred.png',dpi=720)
     else:
         plt.show()
-    return plt
+    return np.abs(c12)
 
 def plot_error(ns, ne, pred, actual, train_end=None):
     print('High correlation (near 1) means we are predicting noise.')
@@ -231,8 +231,9 @@ def plot_error(ns, ne, pred, actual, train_end=None):
     plt.plot(indices, -actual[ns:ne],':')
     if train_end is not None:
         plt.axvspan(ns,train_end,facecolor='b',alpha=0.1)
-        plt.axvspan(train_end,ne,facecolor='g',alpha=0.1)
+#        plt.axvspan(train_end,ne,facecolor='g',alpha=0.1)
 
     plt.legend(['Error', 'Signal'])
     plt.show()
+    return c12
 
