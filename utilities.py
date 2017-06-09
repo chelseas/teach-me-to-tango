@@ -87,12 +87,18 @@ def discretize_outputs(data, n_levels):
         bin_edges[k+1] = sorted_data[n_per_class*(k+1)+n_offset]
     bin_edges[-1] = maxval
     
+    
     for k in range(data.shape[0]):
         cats[k] = np.argmax(bin_edges > data[k])-1
+        # put zero cat in middle
+        if cats[k] == 0:
+            cats[k] = (n_levels//2)
+        elif cats[k] == n_levels//2:
+            cats[k] = 0
 
     for k in range(n_levels):
         i_k = np.where(cats == k)
-        if((data[i_k]).shape[0] == 0):
+        if((data[i_k]).shape[0] == 0): # If bin is empty, don't compute a mean
             mean_vals[k] = bin_edges[k]
         else:
             mean_vals[k] = np.mean(data[i_k])
@@ -194,7 +200,7 @@ def plot_data(ns, ne, pred, actual, train_end=None, save=False):
         plt.axvspan(ns,train_end,facecolor='b',alpha=0.1)
 #        plt.axvspan(train_end,ne,facecolor='g',alpha=0.1)
     plt.plot(indices, actual[ns:ne],'.',alpha=0.6)
-    plt.plot(indices, pred[ns:ne],'-.',alpha=0.6)
+    plt.plot(indices, pred[ns:ne],'.',alpha=0.6)
     plt.xlim([ns,ne])
     plt.legend(['Actual', 'Predicted'])
     plt.plot([ns,ne],[0,0],':')
