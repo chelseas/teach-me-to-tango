@@ -29,9 +29,17 @@ def load_data(imgs_filename):
     y_data = np.concatenate([[0.],np.diff(pos_err)],axis=0); # Error rate, crudely estimated.
 
     print('Loading image data')
+    # Test if filename is a list:
+    if(len(imgs_filename[0])==1):
 #    flows_data = np.load('../gbucket/center_cropped_192x192.npy').astype(np.float32)
-    flows_data = np.load(imgs_filename).astype(np.float32)
-    flows_data = flows_data[i_start:,...]
+        flows_data = np.load(imgs_filename).astype(np.float32)
+        flows_data = flows_data[i_start:,...]
+    else:
+        flows_data = np.load(imgs_filename[0]).astype(np.float32)
+        flows_data = flows_data[i_start:,...]
+        # Now load the rest:
+        for indx in range(len(imgs_filename)-1):
+            flows_data = np.concatenate([flows_data, np.load(imgs_filename[indx+1]).astype(np.float32)],axis=0)
     
     # special for the 192, which is actually 193
     if(flows_data.shape[2] == 193):
