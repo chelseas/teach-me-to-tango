@@ -72,7 +72,7 @@ class SqueezeNet(object):
                 layers.append(x)
         return layers
 
-    def __init__(self, NUM_CLASSES = 1000, NUM_CHANNELS=3, img_dim=192, save_path=None, sess=None):
+    def __init__(self, NUM_CLASSES = 1000, NUM_CHANNELS=3, img_dim=192, bin_weights=None, save_path=None, sess=None):
         """Create a SqueezeNet model.
         Inputs:
         - save_path: path to TensorFlow checkpoint
@@ -82,7 +82,8 @@ class SqueezeNet(object):
         self.labels = tf.placeholder('int32', shape=[None], name='labels')
         self.layers = []
         self.lr = tf.placeholder('float',shape=[1],name='lr')
-        
+        if bin_weights is not None:
+            self.bin_weights = tf.constant(bin_weights);
         x = self.image
         self.NUM_CHANNELS = int(NUM_CHANNELS)
         self.layers = self.extract_features(x, reuse=False)
@@ -127,13 +128,21 @@ class SqueezeNet(object):
         if save_path is not None:
             saver = tf.train.Saver()
             saver.restore(sess, save_path)
-            
-        # Softmax loss:
-        self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=tf.one_hot(self.labels, NUM_CLASSES), logits=self.classifier))
-        # L1 loss:
-#        self.loss = tf.reduce_mean((tf.abs(tf.cast(tf.one_hot(self.labels, NUM_CLASSES),'float32')-self.classifier)))
 
         self.prediction = tf.cast(tf.argmax(self.classifier,1),'int32')
         self.acc = tf.reduce_mean(tf.cast(tf.equal(self.prediction, self.labels),tf.float32))
+
+        # Softmax loss:
+        if bin_weights is None:
+            self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=tf.one_hot(self.labels, NUM_CLASSES), logits=self.classifier)) + tf.reduce_mean(tf.abs(tf.squared_difference(tf.cast(self.labels,'float'), tf.cast(self.prediction,'float'))))
+        else:
+            y_a = tf.gather(self.bin_weights,self.labels)
+            y_p = tf.gather(self.bin_weights, self.prediction)
+            self.loss = tf.reduce_mean( tf.abs(tf.squared_difference(y_p, y_a) ) ) 
+            #+ tf.reduce_mean( tf.sqared_difference(bin_weights[self.prediction], bin_weights[self.labels] ) ) # L2 loss
+            
+        # L1 loss:
+#        self.loss = tf.reduce_mean((tf.abs(tf.cast(tf.one_hot(self.labels, NUM_CLASSES),'float32')-self.classifier)))
+
         self.optimizer = tf.train.AdamOptimizer(learning_rate=self.lr[0]).minimize(self.loss)
 
