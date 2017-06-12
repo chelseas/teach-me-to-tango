@@ -189,9 +189,9 @@ def sample_3x(batch_size, x, y,start_ind=None):
 
 def sample_indep_seq_batch(batch_size, sequence_length, x_img, x_imu, y_cat, start_ind=0):
     # sample batches where each sample in the batch picks up where the previous sample left off
-    x_img_batch = np.zeros((batch_size, x_img.shape[1], x_img.shape[2], x_img.shape[3]))
-    x_imu_batch = np.zeros((batch_size, x_imu.shape[1]))
-    y_batch = np.zeros((batch_size, y_cat.shape[1]))
+    x_img_batch = np.zeros((batch_size, sequence_length, x_img.shape[1], x_img.shape[2], x_img.shape[3]))
+    x_imu_batch = np.zeros((batch_size, sequence_length, x_imu.shape[1]))
+    y_batch = np.zeros((batch_size, sequence_length, y_cat.shape[1]))
     for i in range(batch_size):
         x_img_batch[i,:,:,:,:] = x_img[start_ind:start_ind+sequence_length,:,:,:]
         x_imu_batch[i,:,:] = x_imu[start_ind:start_ind+sequence_length,:]
