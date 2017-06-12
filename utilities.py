@@ -213,7 +213,7 @@ def plot_data(ns, ne, pred, actual, train_end=None, save=False):
     m2 = pred[ns:ne].mean()
     c2 = np.sqrt(np.correlate(pred[ns:ne]-m2,pred[ns:ne]-m2)[0])
     c12 = (np.correlate(actual[ns:ne]-m1,pred[ns:ne]-m2))[0]/(c1*c2)
-    print('Correlation between error and signal:', (np.abs(c12)))
+    print('Correlation between data and signal:', (np.abs(c12)))
     
     indices = np.arange(ns,ne);
     
@@ -267,8 +267,8 @@ def plot_error(ns, ne, pred, actual, train_end=None):
     return c12
 
 def sample_sequential_batch(batch_size, seq_length, x_img, x_imu, start_ind=0):
-    x_img_batch = np.zeros((batch_size, sequence_length, x_img.shape[1], x_img.shape[2], x_img.shape[3]))
-    x_imu_batch = np.zeros((batch_size, sequence_length, x_imu.shape[1]))
+    x_img_batch = np.zeros((batch_size, seq_length, x_img.shape[1], x_img.shape[2], x_img.shape[3]))
+    x_imu_batch = np.zeros((batch_size, seq_length, x_imu.shape[1]))
     for i in range(batch_size):
         x_img_batch[i,:,:,:,:] = x_img[start_ind+i:start_ind+i+seq_length,:,:,:]
         x_imu_batch[i,:,:] = x_imu[start_ind+i:start_ind+i+seq_length,:]
