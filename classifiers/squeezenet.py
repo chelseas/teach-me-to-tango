@@ -112,6 +112,8 @@ class SqueezeNet(object):
                     x = tf.nn.avg_pool(x,[1,6,5,1],strides=[1,4,4,1],padding='VALID')
                 elif(img_dim == 48):
                     x = tf.nn.avg_pool(x,[1,2,3,1],strides=[1,2,1,1],padding='VALID')
+                elif(img_dim == 480):
+                    x = tf.nn.avg_pool(x,[1,24,24,1],strides=[1,16,16,1],padding='VALID')
                 else:
                     print('Untested image dim ',img_dim, 'If dimensions don\'t work, change layer3 pooling')
                     x = tf.nn.avg_pool(x,[1,13,13,1],strides=[1,13,13,1],padding='VALID')

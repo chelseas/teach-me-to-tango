@@ -35,10 +35,12 @@ def load_data(imgs_filename):
         flows_data = np.load(imgs_filename).astype(np.float32)
         flows_data = flows_data[i_start:,...]
     else:
+        print(imgs_filename[0])
         flows_data = np.load(imgs_filename[0]).astype(np.float32)
         flows_data = flows_data[i_start:,...]
         # Now load the rest:
         for indx in range(len(imgs_filename)-1):
+            print(imgs_filename[indx+1])
             flows_data = np.concatenate([flows_data, np.load(imgs_filename[indx+1]).astype(np.float32)],axis=0)
     
     # special for the 192, which is actually 193
@@ -65,14 +67,7 @@ def load_data(imgs_filename):
     imu_data = imu_data - imu_data.mean(axis=0)
     imu_data /= np.std(imu_data,axis=0)
 
-    # Flatten flows data into a "velocity" estimate
-    v = np.zeros((flows_data.shape[0],1))
-    for k in range(v.shape[0]):
-        v[k,0] = np.linalg.norm(flows_data[k,...])
-    # Normalize image data
-    v -= v.mean(axis=0)
-    v /= np.std(v,axis=0)
-    x_data = np.concatenate([imu_data, v, d_raw[i_start:i_end,1:4]],axis=1)    
+    x_data = np.concatenate([imu_data, d_raw[i_start:i_end,1:4]],axis=1)    
     
     return x_data, flows_data, y_data
 
@@ -138,7 +133,7 @@ def plot_examples(x_data,flows_data,y_norm,y_angle, train_inds, val_inds):
 def calc_rmse(predictions, targets):
     return np.sqrt(((predictions.reshape([-1]) - targets.reshape([-1])) ** 2).mean())
 
-def sample_subseq(sequence_length, x, y, start_ind=None, ret_ind = False):
+def sample_subseq(sequence_length, x, y, x2=None, start_ind=None, ret_ind = False):
     if(x.shape[0] != y.shape[0]):
         print('X and Y do not have same number of samples!', x.shape[0], y.shape[0])
     if(x.shape[0] < sequence_length):
@@ -148,26 +143,36 @@ def sample_subseq(sequence_length, x, y, start_ind=None, ret_ind = False):
     if(start_ind is None):
         start_ind = np.random.randint(0, x.shape[0]-sequence_length);
     if(ret_ind):
+        if(x2 is not None):
+            return x[start_ind:start_ind+sequence_length,...], x2[start_ind:start_ind+sequence_length,...], y[start_ind:start_ind+sequence_length,...],start_ind
         return x[start_ind:start_ind+sequence_length,...], y[start_ind:start_ind+sequence_length,...],start_ind
+    if(x2 is not None):
+        return x[start_ind:start_ind+sequence_length,...], x2[start_ind:start_ind+sequence_length,...], y[start_ind:start_ind+sequence_length,...]
     return x[start_ind:start_ind+sequence_length,...], y[start_ind:start_ind+sequence_length,...]
 
-def sample_seqbatch(batch_size, sequence_length, x, y, start_ind=None):
+def sample_seqbatch(batch_size, sequence_length, x, y, x2=None, start_ind=None):
     if(x.shape[0] != y.shape[0]):
         print('X and Y do not have same number of samples!', x.shape[0], y.shape[0])
     if(x.shape[0] < sequence_length*batch_size):
         print('Asking for a sequence longer than the data!')
         return [],[]
     if(start_ind is None):
-        start_ind = np.random.randint(0, x.shape[0]-sequence_length);
+        start_ind = np.random.randint(0, x.shape[0]-sequence_length*batch_size);
     elif(start_ind + sequence_length*batch_size > x.shape[0]):
         print('Asking for a batch/sequence/start_ind tuple that overruns')
     x_batch = x[start_ind:start_ind+sequence_length,:]
+    if(x2 is not None):
+        x2_batch = x2[start_ind:start_ind+sequence_length,...]
     y_batch = y[start_ind:start_ind+sequence_length,...]
     start_ind += 1
     for k in range(batch_size-1):
-        start_ind += k
+        start_ind += 1
+        if(x2 is not None):
+            x2_batch = np.concatenate([x2_batch,x2[start_ind:start_ind+sequence_length,...]],axis=0)
         x_batch = np.concatenate([x_batch, x[start_ind:start_ind+sequence_length,...]],axis=0)
         y_batch = np.concatenate([y_batch, y[start_ind:start_ind+sequence_length,...]],axis=0)
+    if(x2 is not None):
+        return x_batch, x2_batch, y_batch
     return x_batch,y_batch
     
 
