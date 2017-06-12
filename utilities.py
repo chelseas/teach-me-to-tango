@@ -57,6 +57,7 @@ def load_data(imgs_filename):
     y_data = y_data[i_start:i_end]
     imu_data = imu_data[i_start:i_end,:]
     flows_data = flows_data[i_start:i_end,...]
+    #print("imu_data.shape: ",imu_data.shape)
     
 
     ### Data Preprocessing ###
@@ -185,6 +186,20 @@ def sample_3x(batch_size, x, y,start_ind=None):
         y_batch = np.concatenate([y_batch,[yk[-1]]],axis=0);
     x_batch = np.swapaxes(x_batch, 1,3)
     return x_batch, y_batch
+
+def sample_indep_seq_batch(batch_size, sequence_length, x_img, x_imu, y_cat, start_ind=0):
+    # sample batches where each sample in the batch picks up where the previous sample left off
+    x_img_batch = np.zeros((batch_size, x_img.shape[1], x_img.shape[2], x_img.shape[3]))
+    x_imu_batch = np.zeros((batch_size, x_imu.shape[1]))
+    y_batch = np.zeros((batch_size, y_cat.shape[1]))
+    for i in range(batch_size):
+        x_img_batch[i,:,:,:,:] = x_img[start_ind:start_ind+sequence_length,:,:,:]
+        x_imu_batch[i,:,:] = x_imu[start_ind:start_ind+sequence_length,:]
+        y_batch[i,:,:] = y_cat[start_ind:start_ind+sequence_length,:]
+        start_ind = start_ind + sequence_length
+    
+    return (x_img_batch, x_imu_batch, y_batch, start_ind)
+
 
 
 
