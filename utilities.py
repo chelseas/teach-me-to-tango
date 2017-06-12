@@ -266,3 +266,11 @@ def plot_error(ns, ne, pred, actual, train_end=None):
     plt.show()
     return c12
 
+def sample_sequential_batch(batch_size, seq_length, x_img, x_imu, start_ind=0):
+    x_img_batch = np.zeros((batch_size, sequence_length, x_img.shape[1], x_img.shape[2], x_img.shape[3]))
+    x_imu_batch = np.zeros((batch_size, sequence_length, x_imu.shape[1]))
+    for i in range(batch_size):
+        x_img_batch[i,:,:,:,:] = x_img[start_ind+i:start_ind+i+seq_length,:,:,:]
+        x_imu_batch[i,:,:] = x_imu[start_ind+i:start_ind+i+seq_length,:]
+    return (x_img_batch, x_imu_batch)	
+
